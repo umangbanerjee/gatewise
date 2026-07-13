@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, Suspense } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { useForm } from 'react-hook-form'
 import { zodResolver } from '@hookform/resolvers/zod'
@@ -23,22 +23,24 @@ const forgotSchema = z.object({
 })
 type ForgotInput = z.infer<typeof forgotSchema>
 
-export default function LoginPage() {
-  const router = useRouter()
+function SetupErrorBanner() {
   const searchParams = useSearchParams()
+  const error = searchParams.get('error')
+  if (error !== 'profile_missing') return null
+  return (
+    <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
+      ⚠️ Your account profile is missing. The database migration may not have been run yet. Please contact the administrator.
+    </div>
+  )
+}
+
+function LoginForm() {
+  const router = useRouter()
   const supabase = createClient()
   const [showPassword, setShowPassword] = useState(false)
   const [forgotMode, setForgotMode] = useState(false)
   const [forgotSent, setForgotSent] = useState(false)
   const [googleLoading, setGoogleLoading] = useState(false)
-  const [setupError, setSetupError] = useState<string | null>(null)
-
-  useEffect(() => {
-    const error = searchParams.get('error')
-    if (error === 'profile_missing') {
-      setSetupError('Your account profile is missing. The database migration may not have been run yet. Please contact the administrator.')
-    }
-  }, [searchParams])
 
   const {
     register,
@@ -117,11 +119,9 @@ export default function LoginPage() {
             <p className="text-sm text-muted-foreground mt-1">Sign in to get started</p>
           </div>
 
-          {setupError && (
-            <div className="rounded-md bg-amber-50 border border-amber-200 px-4 py-3 text-sm text-amber-800">
-              ⚠️ {setupError}
-            </div>
-          )}
+          <Suspense fallback={null}>
+            <SetupErrorBanner />
+          </Suspense>
 
           {forgotMode ? (            forgotSent ? (
               <div className="text-center space-y-4">
@@ -256,5 +256,13 @@ export default function LoginPage() {
         </div>
       </div>
     </div>
+  )
+}
+
+export default function LoginPage() {
+  return (
+    <Suspense fallback={null}>
+      <LoginForm />
+    </Suspense>
   )
 }
